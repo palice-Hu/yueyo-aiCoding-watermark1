@@ -3,6 +3,7 @@ node_modules/
 
 # 构建输出目录
 dist/
+release/
 
 # TypeScript编译产物
 *.tsbuildinfo
@@ -22,3 +23,28 @@ dist/
 
 # 操作系统相关
 Thumbs.db
+
+# 大文件和补丁
+*.patch
+*.exe
+
+# 添加需要忽略的文件类型
+*.asar
+*.dll
+*.pak
+*.dat
+*.bin
+*.html
+*.txt
+*.json
+*.yml
+*.yaml
+
+# 忽略electron构建相关文件
+electron/dist/
+electron/build/
+electron/out/
+electron/release/
+
+# 忽略测试图片
+test-images/
