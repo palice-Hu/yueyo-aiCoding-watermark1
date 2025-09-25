@@ -151,7 +151,8 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
 
-interface ExportSettings {
+// 导出类型定义
+export interface ExportSettings {
   outputFormat: 'jpeg' | 'png'
   outputFolder: string
   namingRule: 'original' | 'prefix' | 'suffix'

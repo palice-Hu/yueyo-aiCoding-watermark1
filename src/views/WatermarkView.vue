@@ -13,20 +13,10 @@
       
       <!-- 中间：预览区域 -->
       <div class="center-panel">
-        <div class="preview-container">
-          <h3>预览</h3>
-          <div class="preview-area">
-            <img 
-              v-if="selectedImage.previewUrl" 
-              :src="selectedImage.previewUrl" 
-              :alt="selectedImage.file?.name"
-              class="preview-image"
-            />
-            <div v-else class="no-preview">
-              <p>请选择一张图片进行预览</p>
-            </div>
-          </div>
-        </div>
+        <WatermarkPreview 
+          :image-src="selectedImage.previewUrl"
+          :watermark-settings="watermarkSettings"
+        />
       </div>
       
       <!-- 右侧：设置面板 -->
@@ -69,11 +59,51 @@ import ImageImporter from '../components/ImageImporter.vue'
 import WatermarkSettings from '../components/WatermarkSettings.vue'
 import ExportSettings from '../components/ExportSettings.vue'
 import TemplateManager from '../components/TemplateManager.vue'
+import WatermarkPreview from '../components/WatermarkPreview.vue'
 
 // 类型定义
 interface ImageItem {
   file: File
   previewUrl: string
+}
+
+interface TextWatermarkSettings {
+  content: string
+  fontSize: number
+  color: string
+  opacity: number
+}
+
+interface ImageWatermarkSettings {
+  file: File | null
+  previewUrl: string
+  scale: number
+  opacity: number
+}
+
+type WatermarkPosition = 'top-left' | 'top-center' | 'top-right' | 
+                        'center-left' | 'center' | 'center-right' | 
+                        'bottom-left' | 'bottom-center' | 'bottom-right'
+
+interface WatermarkSettings {
+  watermarkType: 'text' | 'image'
+  text: TextWatermarkSettings
+  image: ImageWatermarkSettings
+  position: WatermarkPosition
+  rotation: number
+}
+
+interface ExportSettings {
+  outputFormat: 'jpeg' | 'png'
+  outputFolder: string
+  namingRule: 'original' | 'prefix' | 'suffix'
+  prefix: string
+  suffix: string
+  jpegQuality: number
+  resizeMode: 'none' | 'width' | 'height' | 'percentage'
+  resizeWidth: number
+  resizeHeight: number
+  resizePercentage: number
 }
 
 // 响应式数据
@@ -93,7 +123,7 @@ const selectedImage = computed(() => {
 })
 
 // 水印设置
-const watermarkSettings = reactive({
+const watermarkSettings = reactive<WatermarkSettings>({
   watermarkType: 'text',
   text: {
     content: '水印文本',
@@ -112,7 +142,7 @@ const watermarkSettings = reactive({
 })
 
 // 导出设置
-const exportSettings = reactive({
+const exportSettings = reactive<ExportSettings>({
   outputFormat: 'jpeg',
   outputFolder: '',
   namingRule: 'original',
@@ -195,46 +225,11 @@ const processImages = async () => {
   gap: 20px;
 }
 
-.preview-container {
-  background: #f9f9f9;
-  border-radius: 8px;
-  padding: 20px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.preview-container h3 {
-  margin-top: 0;
-  color: #333;
-}
-
-.preview-area {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.preview-image {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.no-preview {
-  text-align: center;
-  color: #999;
-}
-
 .settings-panel {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  height: 100%;
 }
 
 .process-actions {

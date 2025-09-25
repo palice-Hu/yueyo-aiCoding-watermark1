@@ -149,25 +149,26 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 
-interface TextWatermarkSettings {
+// 导出类型定义
+export interface TextWatermarkSettings {
   content: string
   fontSize: number
   color: string
   opacity: number
 }
 
-interface ImageWatermarkSettings {
+export interface ImageWatermarkSettings {
   file: File | null
   previewUrl: string
   scale: number
   opacity: number
 }
 
-type WatermarkPosition = 'top-left' | 'top-center' | 'top-right' | 
+export type WatermarkPosition = 'top-left' | 'top-center' | 'top-right' | 
                         'center-left' | 'center' | 'center-right' | 
                         'bottom-left' | 'bottom-center' | 'bottom-right'
 
-interface WatermarkSettings {
+export interface WatermarkSettings {
   watermarkType: 'text' | 'image'
   text: TextWatermarkSettings
   image: ImageWatermarkSettings
