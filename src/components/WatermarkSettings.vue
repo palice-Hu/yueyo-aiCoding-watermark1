@@ -235,8 +235,9 @@ const handleImageSelect = (event: Event) => {
 
 // 启用拖拽定位
 const enableDragPosition = () => {
-  // 这个功能将在预览组件中实现
-  console.log('启用拖拽定位模式')
+  // 发送事件通知父组件启用拖拽模式
+  const event = new CustomEvent('enableDragPosition')
+  window.dispatchEvent(event)
 }
 </script>
 

@@ -16,6 +16,8 @@
         <WatermarkPreview 
           :image-src="selectedImage.previewUrl"
           :watermark-settings="watermarkSettings"
+          :drag-mode="dragMode"
+          @update:watermarkPosition="updateWatermarkPosition"
         />
       </div>
       
@@ -87,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted, onBeforeUnmount } from 'vue'
 import ImageImporter from '../components/ImageImporter.vue'
 import WatermarkSettings from '../components/WatermarkSettings.vue'
 import ExportSettings from '../components/ExportSettings.vue'
@@ -147,6 +149,7 @@ const progress = ref(0)
 const processedCount = ref(0)
 const totalCount = ref(0)
 const activePanel = ref<'watermark' | 'export' | 'template'>('watermark')
+const dragMode = ref(false)
 
 // 计算属性
 const selectedImage = computed(() => {
@@ -213,6 +216,41 @@ const processImages = async () => {
   processing.value = false
   alert('图片处理完成！')
 }
+
+// 更新水印位置
+const updateWatermarkPosition = (position: { x: number; y: number }) => {
+  // 这里可以保存自定义位置信息
+  console.log('水印位置更新:', position)
+}
+
+// 启用拖拽模式
+const enableDragMode = () => {
+  if (selectedImage.value.previewUrl) {
+    dragMode.value = true
+  } else {
+    alert('请先选择一张图片')
+  }
+}
+
+// 禁用拖拽模式
+const disableDragMode = () => {
+  dragMode.value = false
+}
+
+// 处理启用拖拽定位事件
+const handleEnableDragPosition = () => {
+  enableDragMode()
+}
+
+// 组件挂载时添加事件监听器
+onMounted(() => {
+  window.addEventListener('enableDragPosition', handleEnableDragPosition)
+})
+
+// 组件卸载前移除事件监听器
+onBeforeUnmount(() => {
+  window.removeEventListener('enableDragPosition', handleEnableDragPosition)
+})
 </script>
 
 <style scoped>
