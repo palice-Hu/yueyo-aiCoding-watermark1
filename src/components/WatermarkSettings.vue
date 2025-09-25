@@ -166,7 +166,8 @@ export interface ImageWatermarkSettings {
 
 export type WatermarkPosition = 'top-left' | 'top-center' | 'top-right' | 
                         'center-left' | 'center' | 'center-right' | 
-                        'bottom-left' | 'bottom-center' | 'bottom-right'
+                        'bottom-left' | 'bottom-center' | 'bottom-right' |
+                        'custom'
 
 export interface WatermarkSettings {
   watermarkType: 'text' | 'image'
@@ -174,6 +175,7 @@ export interface WatermarkSettings {
   image: ImageWatermarkSettings
   position: WatermarkPosition
   rotation: number
+  customPosition?: { x: number; y: number }
 }
 
 const settings = defineModel<WatermarkSettings>({ 
@@ -195,6 +197,10 @@ const settings = defineModel<WatermarkSettings>({
     rotation: 0
   })
 })
+
+const emit = defineEmits<{
+  (e: 'enableDragPosition'): void
+}>()
 
 const imageInput = ref<HTMLInputElement | null>(null)
 
@@ -235,9 +241,7 @@ const handleImageSelect = (event: Event) => {
 
 // 启用拖拽定位
 const enableDragPosition = () => {
-  // 发送事件通知父组件启用拖拽模式
-  const event = new CustomEvent('enableDragPosition')
-  window.dispatchEvent(event)
+  emit('enableDragPosition')
 }
 </script>
 

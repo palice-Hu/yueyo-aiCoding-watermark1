@@ -16,9 +16,12 @@
         <WatermarkPreview 
           :image-src="selectedImage.previewUrl"
           :watermark-settings="watermarkSettings"
-          :drag-mode="dragMode"
           @update:watermarkPosition="updateWatermarkPosition"
         />
+        <!-- 拖拽提示 -->
+        <div v-if="dragMode" class="drag-hint">
+          请在水印上按下鼠标左键并拖拽到目标位置
+        </div>
       </div>
       
       <!-- 右侧：设置面板 -->
@@ -48,7 +51,10 @@
 
           <!-- 水印设置面板 -->
           <div v-show="activePanel === 'watermark'" class="panel-content">
-            <WatermarkSettings v-model="watermarkSettings" />
+            <WatermarkSettings 
+              v-model="watermarkSettings" 
+              @enable-drag-position="enableDragMode"
+            />
           </div>
 
           <!-- 导出设置面板 -->
@@ -118,7 +124,8 @@ interface ImageWatermarkSettings {
 
 type WatermarkPosition = 'top-left' | 'top-center' | 'top-right' | 
                         'center-left' | 'center' | 'center-right' | 
-                        'bottom-left' | 'bottom-center' | 'bottom-right'
+                        'bottom-left' | 'bottom-center' | 'bottom-right' |
+                        'custom'
 
 interface WatermarkSettings {
   watermarkType: 'text' | 'image'
@@ -126,6 +133,7 @@ interface WatermarkSettings {
   image: ImageWatermarkSettings
   position: WatermarkPosition
   rotation: number
+  customPosition?: { x: number; y: number }
 }
 
 interface ExportSettings {
@@ -219,14 +227,19 @@ const processImages = async () => {
 
 // 更新水印位置
 const updateWatermarkPosition = (position: { x: number; y: number }) => {
-  // 这里可以保存自定义位置信息
-  console.log('水印位置更新:', position)
+  // 设置自定义位置
+  watermarkSettings.position = 'custom'
+  watermarkSettings.customPosition = position
+  // 退出拖拽模式
+  dragMode.value = false
 }
 
 // 启用拖拽模式
 const enableDragMode = () => {
   if (selectedImage.value.previewUrl) {
     dragMode.value = true
+    // 添加说明文字，指导用户如何操作
+    console.log('进入拖拽模式，请在水印上按下鼠标左键并拖拽到目标位置')
   } else {
     alert('请先选择一张图片')
   }
@@ -237,19 +250,21 @@ const disableDragMode = () => {
   dragMode.value = false
 }
 
-// 处理启用拖拽定位事件
-const handleEnableDragPosition = () => {
-  enableDragMode()
-}
-
 // 组件挂载时添加事件监听器
 onMounted(() => {
-  window.addEventListener('enableDragPosition', handleEnableDragPosition)
-})
-
-// 组件卸载前移除事件监听器
-onBeforeUnmount(() => {
-  window.removeEventListener('enableDragPosition', handleEnableDragPosition)
+  // 添加键盘事件监听，按ESC键退出拖拽模式
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      disableDragMode()
+    }
+  }
+  
+  window.addEventListener('keydown', handleKeyDown)
+  
+  // 清理事件监听器
+  onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleKeyDown)
+  })
 })
 </script>
 
@@ -289,6 +304,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 .right-panel {
@@ -390,5 +406,18 @@ onBeforeUnmount(() => {
   text-align: center;
   color: #666;
   font-weight: bold;
+}
+
+.drag-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-size: 14px;
+  z-index: 100;
 }
 </style>

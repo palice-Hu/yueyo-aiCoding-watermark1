@@ -10,38 +10,25 @@
         ref="previewCanvas" 
         class="preview-canvas"
         v-show="!!imageSrc"
+        @mousedown="startDrag"
       ></canvas>
       <div v-if="!imageSrc" class="no-preview">
         <p>请选择一张图片进行预览</p>
-      </div>
-      <div 
-        v-if="dragMode" 
-        class="drag-overlay"
-        @mousedown="startDrag"
-      >
-        <div 
-          class="watermark-draggable"
-          :style="draggableStyle"
-        >
-          {{ watermarkSettings.text.content }}
-        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed, reactive } from 'vue'
+import { ref, watch, nextTick, reactive } from 'vue'
 
 const props = defineProps<{
   imageSrc: string | null
   watermarkSettings: any
-  dragMode?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'update:watermarkPosition', position: { x: number; y: number }): void
-  (e: 'dragModeChange', mode: boolean): void
 }>()
 
 // 定义水印设置接口
@@ -68,87 +55,79 @@ const dragState = reactive({
   isDragging: false,
   startX: 0,
   startY: 0,
+  startWatermarkX: 0,
+  startWatermarkY: 0,
   watermarkX: 0,
-  watermarkY: 0
-})
-
-// 计算可拖拽水印的样式
-const draggableStyle = computed(() => {
-  return {
-    fontSize: props.watermarkSettings.text.fontSize + 'px',
-    color: props.watermarkSettings.text.color,
-    opacity: props.watermarkSettings.text.opacity / 100,
-    fontFamily: 'Arial',
-    fontWeight: 'bold',
-    position: 'absolute',
-    left: dragState.watermarkX + 'px',
-    top: dragState.watermarkY + 'px',
-    cursor: 'move',
-    userSelect: 'none',
-    transform: `rotate(${props.watermarkSettings.rotation}deg)`,
-    transformOrigin: 'center'
-  }
+  watermarkY: 0,
+  watermarkWidth: 0,
+  watermarkHeight: 0
 })
 
 // 监听图片源和水印设置的变化
 watch([() => props.imageSrc, () => props.watermarkSettings], () => {
-  if (props.imageSrc && !props.dragMode) {
+  if (props.imageSrc) {
     loadImageAndApplyWatermark()
   }
 }, { deep: true })
 
-// 监听拖拽模式变化
-watch(() => props.dragMode, (newVal) => {
-  if (newVal && props.imageSrc) {
-    // 进入拖拽模式时，初始化水印位置
-    initDraggablePosition()
-  }
-})
+// 处理拖拽悬停
+const handleDragOver = (event: DragEvent) => {
+  event.preventDefault()
+}
 
-// 初始化可拖拽水印位置
-const initDraggablePosition = () => {
+// 处理拖拽放置
+const handleDrop = (event: DragEvent) => {
+  event.preventDefault()
+}
+
+// 开始拖拽
+const startDrag = (event: MouseEvent) => {
   if (!previewCanvas.value) return
   
   const canvas = previewCanvas.value
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
+  const rect = canvas.getBoundingClientRect()
   
-  // 设置字体以正确测量文本
-  ctx.font = `bold ${props.watermarkSettings.text.fontSize}px Arial`
-  const textMetrics = ctx.measureText(props.watermarkSettings.text.content)
-  const textWidth = textMetrics.width
-  const textHeight = props.watermarkSettings.text.fontSize
+  // 计算点击位置相对于canvas的坐标
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
   
-  // 默认位置设为右下角
-  dragState.watermarkX = canvas.width - textWidth - 20
-  dragState.watermarkY = canvas.height - textHeight - 20
-}
-
-// 处理拖拽开始
-const startDrag = (event: MouseEvent) => {
-  if (!props.dragMode) return
-  
-  dragState.isDragging = true
-  dragState.startX = event.clientX
-  dragState.startY = event.clientY
-  
-  // 添加事件监听器
-  document.addEventListener('mousemove', handleDrag)
-  document.addEventListener('mouseup', stopDrag)
+  // 检查是否点击在水印上
+  if (isClickOnWatermark(x, y)) {
+    dragState.isDragging = true
+    dragState.startX = event.clientX
+    dragState.startY = event.clientY
+    dragState.startWatermarkX = dragState.watermarkX
+    dragState.startWatermarkY = dragState.watermarkY
+    
+    // 添加事件监听器
+    document.addEventListener('mousemove', handleDrag)
+    document.addEventListener('mouseup', stopDrag)
+    
+    event.preventDefault()
+  }
 }
 
 // 处理拖拽过程
 const handleDrag = (event: MouseEvent) => {
-  if (!dragState.isDragging || !props.dragMode) return
+  if (!dragState.isDragging) return
   
   const deltaX = event.clientX - dragState.startX
   const deltaY = event.clientY - dragState.startY
   
-  dragState.watermarkX += deltaX
-  dragState.watermarkY += deltaY
+  dragState.watermarkX = dragState.startWatermarkX + deltaX
+  dragState.watermarkY = dragState.startWatermarkY + deltaY
   
-  dragState.startX = event.clientX
-  dragState.startY = event.clientY
+  // 重新绘制画布以显示拖拽效果
+  if (imageElement.complete && previewCanvas.value) {
+    const canvas = previewCanvas.value
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      // 重新绘制图片和水印
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(imageElement, 0, 0)
+      drawDraggedWatermark(ctx)
+    }
+  }
 }
 
 // 停止拖拽
@@ -166,14 +145,53 @@ const stopDrag = () => {
   })
 }
 
-// 处理拖拽悬停
-const handleDragOver = (event: DragEvent) => {
-  event.preventDefault()
+// 检查点击是否在水印上
+const isClickOnWatermark = (x: number, y: number): boolean => {
+  return (
+    x >= dragState.watermarkX &&
+    x <= dragState.watermarkX + dragState.watermarkWidth &&
+    y >= dragState.watermarkY &&
+    y <= dragState.watermarkY + dragState.watermarkHeight
+  )
 }
 
-// 处理拖拽放置
-const handleDrop = (event: DragEvent) => {
-  event.preventDefault()
+// 绘制拖拽中的水印
+const drawDraggedWatermark = (ctx: CanvasRenderingContext2D) => {
+  const { text, rotation } = props.watermarkSettings
+  const { content, fontSize, color, opacity } = text
+  
+  if (!content) return
+  
+  // 保存当前上下文
+  ctx.save()
+  
+  // 设置文本样式
+  ctx.font = `bold ${fontSize}px Arial`
+  ctx.fillStyle = color
+  ctx.globalAlpha = opacity / 100
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
+  
+  // 添加阴影效果以提高可读性
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
+  ctx.shadowBlur = 2
+  ctx.shadowOffsetX = 1
+  ctx.shadowOffsetY = 1
+  
+  // 应用旋转
+  if (rotation !== 0) {
+    const centerX = dragState.watermarkX + dragState.watermarkWidth / 2
+    const centerY = dragState.watermarkY + dragState.watermarkHeight / 2
+    ctx.translate(centerX, centerY)
+    ctx.rotate(rotation * Math.PI / 180)
+    ctx.translate(-centerX, -centerY)
+  }
+  
+  // 绘制文本
+  ctx.fillText(content, dragState.watermarkX, dragState.watermarkY)
+  
+  // 恢复上下文
+  ctx.restore()
 }
 
 // 加载图片并应用水印
@@ -249,6 +267,10 @@ const applyTextWatermark = (ctx: CanvasRenderingContext2D) => {
   const textWidth = textMetrics.width
   const textHeight = fontSize // 近似高度
   
+  // 保存水印尺寸信息用于拖拽检测
+  dragState.watermarkWidth = textWidth
+  dragState.watermarkHeight = textHeight
+  
   if (repeat) {
     // 平铺水印
     const margin = 20
@@ -266,6 +288,11 @@ const applyTextWatermark = (ctx: CanvasRenderingContext2D) => {
       textHeight,
       position
     )
+    
+    // 保存水印位置信息用于拖拽
+    dragState.watermarkX = x
+    dragState.watermarkY = y
+    
     drawSingleWatermark(ctx, content, x, y, textWidth, textHeight, rotation)
   }
   
@@ -369,6 +396,7 @@ const calculateWatermarkPosition = (
   max-height: 100%;
   object-fit: contain;
   display: block;
+  cursor: default;
 }
 
 .no-preview {
@@ -378,18 +406,5 @@ const calculateWatermarkPosition = (
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-}
-
-.drag-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 10;
-}
-
-.watermark-draggable {
-  pointer-events: auto;
 }
 </style>
