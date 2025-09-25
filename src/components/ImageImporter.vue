@@ -167,6 +167,10 @@ const handleDragLeave = (event: DragEvent) => {
   border: 1px solid #ddd;
   border-radius: 8px;
   background-color: #f9f9f9;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .import-section h3 {
@@ -224,17 +228,27 @@ const handleDragLeave = (event: DragEvent) => {
   background-color: #5daf34;
 }
 
+.image-list {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .image-list h3 {
   color: #333;
   border-bottom: 1px solid #eee;
   padding-bottom: 10px;
+  margin: 20px 0 10px 0;
 }
 
 .image-grid {
+  flex: 1;
+  overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 15px;
-  margin-top: 15px;
+  padding-right: 5px;
 }
 
 .image-item {

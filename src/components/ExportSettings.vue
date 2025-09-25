@@ -190,10 +190,7 @@ const selectOutputFolder = () => {
 
 <style scoped>
 .export-settings {
-  padding: 20px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background-color: #f9f9f9;
+  padding: 10px 0;
 }
 
 .export-settings h3 {
@@ -220,6 +217,7 @@ const selectOutputFolder = () => {
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
+  box-sizing: border-box;
 }
 
 .folder-button {

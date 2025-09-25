@@ -242,10 +242,15 @@ const calculateWatermarkPosition = (
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  display: block;
 }
 
 .no-preview {
   text-align: center;
   color: #999;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 </style>

@@ -22,9 +22,42 @@
       <!-- 右侧：设置面板 -->
       <div class="right-panel">
         <div class="settings-panel">
-          <WatermarkSettings v-model="watermarkSettings" />
-          <ExportSettings v-model="exportSettings" />
-          <TemplateManager />
+          <!-- 顶部导航按钮 -->
+          <div class="panel-tabs">
+            <button 
+              :class="{ active: activePanel === 'watermark' }"
+              @click="activePanel = 'watermark'"
+            >
+              水印设置
+            </button>
+            <button 
+              :class="{ active: activePanel === 'export' }"
+              @click="activePanel = 'export'"
+            >
+              导出设置
+            </button>
+            <button 
+              :class="{ active: activePanel === 'template' }"
+              @click="activePanel = 'template'"
+            >
+              模板管理
+            </button>
+          </div>
+
+          <!-- 水印设置面板 -->
+          <div v-show="activePanel === 'watermark'" class="panel-content">
+            <WatermarkSettings v-model="watermarkSettings" />
+          </div>
+
+          <!-- 导出设置面板 -->
+          <div v-show="activePanel === 'export'" class="panel-content">
+            <ExportSettings v-model="exportSettings" />
+          </div>
+
+          <!-- 模板管理面板 -->
+          <div v-show="activePanel === 'template'" class="panel-content">
+            <TemplateManager />
+          </div>
           
           <div class="process-actions">
             <button 
@@ -113,6 +146,7 @@ const processing = ref(false)
 const progress = ref(0)
 const processedCount = ref(0)
 const totalCount = ref(0)
+const activePanel = ref<'watermark' | 'export' | 'template'>('watermark')
 
 // 计算属性
 const selectedImage = computed(() => {
@@ -184,20 +218,21 @@ const processImages = async () => {
 <style scoped>
 .watermark-view {
   padding: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
+  height: 100vh;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .watermark-view h1 {
   text-align: center;
   color: #333;
-  margin-bottom: 30px;
+  margin: 0 0 20px 0;
 }
 
 .main-container {
   display: flex;
   gap: 20px;
-  height: calc(100vh - 150px);
+  height: calc(100% - 60px);
 }
 
 .left-panel {
@@ -207,6 +242,7 @@ const processImages = async () => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow: hidden;
 }
 
 .center-panel {
@@ -214,6 +250,7 @@ const processImages = async () => {
   min-width: 400px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .right-panel {
@@ -223,17 +260,52 @@ const processImages = async () => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow: hidden;
 }
 
 .settings-panel {
   display: flex;
   flex-direction: column;
-  gap: 20px;
   height: 100%;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.panel-tabs {
+  display: flex;
+  border-bottom: 1px solid #ddd;
+}
+
+.panel-tabs button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background-color: #f5f5f5;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.panel-tabs button.active {
+  background-color: #409eff;
+  color: white;
+}
+
+.panel-tabs button:not(.active):hover {
+  background-color: #e0e0e0;
+}
+
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+  background-color: #f9f9f9;
 }
 
 .process-actions {
-  margin-top: auto;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-top: 1px solid #ddd;
 }
 
 .process-button {

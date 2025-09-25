@@ -101,10 +101,7 @@ const deleteTemplate = (index: number) => {
 
 <style scoped>
 .template-manager {
-  padding: 20px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background-color: #f9f9f9;
+  padding: 10px 0;
 }
 
 .template-manager h3 {
@@ -132,6 +129,7 @@ const deleteTemplate = (index: number) => {
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .save-button:hover {

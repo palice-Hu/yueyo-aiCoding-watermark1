@@ -242,10 +242,7 @@ const enableDragPosition = () => {
 
 <style scoped>
 .watermark-settings {
-  padding: 20px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background-color: #f9f9f9;
+  padding: 10px 0;
 }
 
 .watermark-settings h3 {
@@ -281,6 +278,7 @@ const enableDragPosition = () => {
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
+  box-sizing: border-box;
 }
 
 .slider {
@@ -290,6 +288,8 @@ const enableDragPosition = () => {
 .color-picker {
   width: 60px;
   height: 40px;
+  border: none;
+  border-radius: 4px;
 }
 
 .selected-image-preview {
