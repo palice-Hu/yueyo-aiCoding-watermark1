@@ -16,10 +16,11 @@
         <WatermarkPreview 
           :image-src="selectedImage.previewUrl"
           :watermark-settings="watermarkSettings"
-          @update:watermarkPosition="updateWatermarkPosition"
+          :is-drag-mode="dragMode"
+          @update:watermarkSettings="updateWatermarkSettings"
+          @watermark-position-updated="onWatermarkPositionUpdated"
         />
-        <!-- 拖拽提示 -->
-        <div v-if="dragMode" class="drag-hint">
+        <div v-if="dragMode" class="drag-tip">
           请在水印上按下鼠标左键并拖拽到目标位置
         </div>
       </div>
@@ -225,20 +226,15 @@ const processImages = async () => {
   alert('图片处理完成！')
 }
 
-// 更新水印位置
-const updateWatermarkPosition = (position: { x: number; y: number }) => {
-  // 设置自定义位置
-  watermarkSettings.position = 'custom'
-  watermarkSettings.customPosition = position
-  // 退出拖拽模式
-  dragMode.value = false
+// 更新水印设置
+const updateWatermarkSettings = (newSettings: WatermarkSettings) => {
+  Object.assign(watermarkSettings, newSettings)
 }
 
 // 启用拖拽模式
 const enableDragMode = () => {
   if (selectedImage.value.previewUrl) {
     dragMode.value = true
-    // 添加说明文字，指导用户如何操作
     console.log('进入拖拽模式，请在水印上按下鼠标左键并拖拽到目标位置')
   } else {
     alert('请先选择一张图片')
@@ -248,6 +244,12 @@ const enableDragMode = () => {
 // 禁用拖拽模式
 const disableDragMode = () => {
   dragMode.value = false
+}
+
+// 水印位置更新回调
+const onWatermarkPositionUpdated = () => {
+  // 可以在这里添加额外的处理逻辑
+  console.log('水印位置已更新')
 }
 
 // 组件挂载时添加事件监听器
@@ -260,10 +262,14 @@ onMounted(() => {
   }
   
   window.addEventListener('keydown', handleKeyDown)
-  
-  // 清理事件监听器
-  onBeforeUnmount(() => {
-    window.removeEventListener('keydown', handleKeyDown)
+})
+
+// 组件卸载前清理事件监听器
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      disableDragMode()
+    }
   })
 })
 </script>
@@ -408,7 +414,7 @@ onMounted(() => {
   font-weight: bold;
 }
 
-.drag-hint {
+.drag-tip {
   position: absolute;
   bottom: 20px;
   left: 50%;

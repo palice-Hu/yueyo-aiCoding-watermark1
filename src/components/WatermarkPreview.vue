@@ -1,67 +1,48 @@
 <template>
   <div class="watermark-preview">
     <h3>预览</h3>
-    <div 
-      class="preview-container"
-      @dragover.prevent="handleDragOver"
-      @drop.prevent="handleDrop"
-    >
+    <div class="preview-container">
       <canvas 
         ref="previewCanvas" 
         class="preview-canvas"
         v-show="!!imageSrc"
-        @mousedown="startDrag"
       ></canvas>
       <div v-if="!imageSrc" class="no-preview">
         <p>请选择一张图片进行预览</p>
       </div>
+      <div 
+        v-if="isDragMode && imageSrc" 
+        class="drag-overlay"
+        @mousedown="handleDragStart"
+      ></div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, reactive } from 'vue'
+import { ref, watch, defineProps, nextTick, defineEmits } from 'vue'
 
 const props = defineProps<{
   imageSrc: string | null
   watermarkSettings: any
+  isDragMode?: boolean
 }>()
 
-const emit = defineEmits<{
-  (e: 'update:watermarkPosition', position: { x: number; y: number }): void
+const emits = defineEmits<{
+  (e: 'update:watermarkSettings', value: any): void
+  (e: 'watermark-position-updated'): void
 }>()
-
-// 定义水印设置接口
-interface WatermarkSettings {
-  watermarkType: 'text' | 'image'
-  text: {
-    content: string
-    fontSize: number
-    color: string
-    opacity: number
-  }
-  position: string
-  rotation: number
-  repeat: boolean
-  image?: {
-    file: File | null
-    opacity: number
-  }
-}
 
 const previewCanvas = ref<HTMLCanvasElement | null>(null)
 const imageElement = new Image()
-const dragState = reactive({
-  isDragging: false,
-  startX: 0,
-  startY: 0,
-  startWatermarkX: 0,
-  startWatermarkY: 0,
-  watermarkX: 0,
-  watermarkY: 0,
-  watermarkWidth: 0,
-  watermarkHeight: 0
-})
+let isDragging = false
+let dragStart = { x: 0, y: 0 }
+let watermarkInfo = {
+  x: 0,
+  y: 0,
+  width: 0,
+  height: 0
+}
 
 // 监听图片源和水印设置的变化
 watch([() => props.imageSrc, () => props.watermarkSettings], () => {
@@ -70,128 +51,144 @@ watch([() => props.imageSrc, () => props.watermarkSettings], () => {
   }
 }, { deep: true })
 
-// 处理拖拽悬停
-const handleDragOver = (event: DragEvent) => {
-  event.preventDefault()
-}
-
-// 处理拖拽放置
-const handleDrop = (event: DragEvent) => {
-  event.preventDefault()
-}
-
-// 开始拖拽
-const startDrag = (event: MouseEvent) => {
-  if (!previewCanvas.value) return
+// 处理拖拽开始
+const handleDragStart = (event: MouseEvent) => {
+  if (!props.isDragMode || !previewCanvas.value) return
   
   const canvas = previewCanvas.value
   const rect = canvas.getBoundingClientRect()
   
-  // 计算点击位置相对于canvas的坐标
+  // 获取相对于画布的点击位置
   const x = event.clientX - rect.left
   const y = event.clientY - rect.top
   
-  // 检查是否点击在水印上
-  if (isClickOnWatermark(x, y)) {
-    dragState.isDragging = true
-    dragState.startX = event.clientX
-    dragState.startY = event.clientY
-    dragState.startWatermarkX = dragState.watermarkX
-    dragState.startWatermarkY = dragState.watermarkY
+  // 计算实际画布中的坐标（考虑缩放比例）
+  const scaleX = canvas.width / rect.width
+  const scaleY = canvas.height / rect.height
+  const canvasX = x * scaleX
+  const canvasY = y * scaleY
+  
+  console.log('鼠标点击位置:', x, y)
+  console.log('画布显示尺寸:', rect.width, rect.height)
+  console.log('画布实际尺寸:', canvas.width, canvas.height)
+  console.log('缩放比例:', scaleX, scaleY)
+  console.log('画布内实际坐标:', canvasX, canvasY)
+  console.log('水印信息:', watermarkInfo)
+  
+  // 检查点击是否在水印上
+  if (isPointInWatermark(canvasX, canvasY)) {
+    console.log('点击在水印上，开始拖拽')
+    isDragging = true
+    dragStart = { x: canvasX, y: canvasY }
     
-    // 添加事件监听器
-    document.addEventListener('mousemove', handleDrag)
-    document.addEventListener('mouseup', stopDrag)
+    // 添加全局事件监听器
+    document.addEventListener('mousemove', handleDragMove)
+    document.addEventListener('mouseup', handleDragEnd)
     
     event.preventDefault()
+    event.stopPropagation()
+  } else {
+    console.log('点击不在水印上')
+    console.log('水印区域: (', watermarkInfo.x, ',', watermarkInfo.y, ') - (', 
+      watermarkInfo.x + watermarkInfo.width, ',', watermarkInfo.y + watermarkInfo.height, ')')
   }
 }
 
-// 处理拖拽过程
-const handleDrag = (event: MouseEvent) => {
-  if (!dragState.isDragging) return
+// 处理拖拽移动
+const handleDragMove = (event: MouseEvent) => {
+  if (!isDragging || !previewCanvas.value) return
   
-  const deltaX = event.clientX - dragState.startX
-  const deltaY = event.clientY - dragState.startY
+  const canvas = previewCanvas.value
+  const rect = canvas.getBoundingClientRect()
   
-  dragState.watermarkX = dragState.startWatermarkX + deltaX
-  dragState.watermarkY = dragState.startWatermarkY + deltaY
+  // 获取相对于画布的点击位置
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
   
-  // 重新绘制画布以显示拖拽效果
-  if (imageElement.complete && previewCanvas.value) {
-    const canvas = previewCanvas.value
-    const ctx = canvas.getContext('2d')
-    if (ctx) {
-      // 重新绘制图片和水印
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      ctx.drawImage(imageElement, 0, 0)
-      drawDraggedWatermark(ctx)
-    }
+  // 计算实际画布中的坐标（考虑缩放比例）
+  const scaleX = canvas.width / rect.width
+  const scaleY = canvas.height / rect.height
+  const canvasX = x * scaleX
+  const canvasY = y * scaleY
+  
+  // 计算移动距离
+  const deltaX = canvasX - dragStart.x
+  const deltaY = canvasY - dragStart.y
+  
+  // 更新水印位置（带边界检查）
+  const newX = Math.max(0, Math.min(watermarkInfo.x + deltaX, canvas.width - watermarkInfo.width))
+  const newY = Math.max(0, Math.min(watermarkInfo.y + deltaY, canvas.height - watermarkInfo.height))
+  
+  console.log('拖动到新位置:', newX, newY)
+  
+  // 更新拖拽起始点
+  dragStart = { x: canvasX, y: canvasY }
+  
+  // 更新水印信息
+  watermarkInfo.x = newX
+  watermarkInfo.y = newY
+  
+  // 更新水印设置
+  updateWatermarkPosition(newX, newY)
+  
+  // 重新绘制
+  drawWatermarkedImage()
+  
+  event.preventDefault()
+}
+
+// 处理拖拽结束
+const handleDragEnd = () => {
+  if (isDragging) {
+    console.log('结束拖拽')
+    isDragging = false
+    
+    // 移除全局事件监听器
+    document.removeEventListener('mousemove', handleDragMove)
+    document.removeEventListener('mouseup', handleDragEnd)
+    
+    // 发送位置更新事件
+    emits('watermark-position-updated')
   }
 }
 
-// 停止拖拽
-const stopDrag = () => {
-  dragState.isDragging = false
-  
-  // 移除事件监听器
-  document.removeEventListener('mousemove', handleDrag)
-  document.removeEventListener('mouseup', stopDrag)
-  
-  // 发出位置更新事件
-  emit('update:watermarkPosition', {
-    x: dragState.watermarkX,
-    y: dragState.watermarkY
-  })
-}
-
-// 检查点击是否在水印上
-const isClickOnWatermark = (x: number, y: number): boolean => {
-  return (
-    x >= dragState.watermarkX &&
-    x <= dragState.watermarkX + dragState.watermarkWidth &&
-    y >= dragState.watermarkY &&
-    y <= dragState.watermarkY + dragState.watermarkHeight
+// 检查点是否在水印区域内
+const isPointInWatermark = (x: number, y: number): boolean => {
+  const inWatermark = (
+    x >= watermarkInfo.x &&
+    x <= watermarkInfo.x + watermarkInfo.width &&
+    y >= watermarkInfo.y &&
+    y <= watermarkInfo.y + watermarkInfo.height
   )
+  
+  console.log('检查点是否在水印内:', inWatermark)
+  console.log('点击坐标: (', x, ',', y, ')')
+  console.log('水印区域: (', watermarkInfo.x, ',', watermarkInfo.y, ') - (', 
+    watermarkInfo.x + watermarkInfo.width, ',', watermarkInfo.y + watermarkInfo.height, ')')
+    
+  return inWatermark
 }
 
-// 绘制拖拽中的水印
-const drawDraggedWatermark = (ctx: CanvasRenderingContext2D) => {
-  const { text, rotation } = props.watermarkSettings
-  const { content, fontSize, color, opacity } = text
+// 更新水印位置
+const updateWatermarkPosition = (x: number, y: number) => {
+  if (!previewCanvas.value) return
   
-  if (!content) return
+  const canvas = previewCanvas.value
+  // 计算相对位置百分比
+  const relativeX = (x / canvas.width) * 100
+  const relativeY = (y / canvas.height) * 100
   
-  // 保存当前上下文
-  ctx.save()
+  console.log('更新水印位置 - 绝对坐标:(', x, ',', y, ') 相对坐标:(', relativeX, ',', relativeY, ')')
   
-  // 设置文本样式
-  ctx.font = `bold ${fontSize}px Arial`
-  ctx.fillStyle = color
-  ctx.globalAlpha = opacity / 100
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'top'
-  
-  // 添加阴影效果以提高可读性
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
-  ctx.shadowBlur = 2
-  ctx.shadowOffsetX = 1
-  ctx.shadowOffsetY = 1
-  
-  // 应用旋转
-  if (rotation !== 0) {
-    const centerX = dragState.watermarkX + dragState.watermarkWidth / 2
-    const centerY = dragState.watermarkY + dragState.watermarkHeight / 2
-    ctx.translate(centerX, centerY)
-    ctx.rotate(rotation * Math.PI / 180)
-    ctx.translate(-centerX, -centerY)
+  // 创建新的设置对象
+  const newSettings = JSON.parse(JSON.stringify(props.watermarkSettings))
+  newSettings.position = 'custom'
+  newSettings.customPosition = { 
+    x: relativeX, 
+    y: relativeY 
   }
   
-  // 绘制文本
-  ctx.fillText(content, dragState.watermarkX, dragState.watermarkY)
-  
-  // 恢复上下文
-  ctx.restore()
+  emits('update:watermarkSettings', newSettings)
 }
 
 // 加载图片并应用水印
@@ -199,6 +196,7 @@ const loadImageAndApplyWatermark = () => {
   if (!props.imageSrc) return
   
   imageElement.onload = () => {
+    console.log('图片加载完成，开始绘制')
     drawWatermarkedImage()
   }
   
@@ -216,9 +214,12 @@ const drawWatermarkedImage = async () => {
   
   if (!ctx) return
   
-  // 设置画布尺寸
+  // 设置画布尺寸以匹配图片尺寸
   canvas.width = imageElement.width
   canvas.height = imageElement.height
+  
+  // 清除画布
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
   
   // 绘制原图
   ctx.drawImage(imageElement, 0, 0)
@@ -229,7 +230,7 @@ const drawWatermarkedImage = async () => {
 
 // 应用水印
 const applyWatermark = (ctx: CanvasRenderingContext2D) => {
-  const { watermarkType, text, position, rotation } = props.watermarkSettings
+  const { watermarkType, text, position, rotation, customPosition } = props.watermarkSettings
   
   if (watermarkType === 'text' && text.content) {
     applyTextWatermark(ctx)
@@ -241,10 +242,15 @@ const applyWatermark = (ctx: CanvasRenderingContext2D) => {
 
 // 应用文本水印
 const applyTextWatermark = (ctx: CanvasRenderingContext2D) => {
-  const { text, position, rotation, repeat } = props.watermarkSettings
+  const { text, position, rotation, repeat, customPosition } = props.watermarkSettings
   const { content, fontSize, color, opacity } = text
   
-  if (!content) return
+  if (!content) {
+    console.log('没有水印内容')
+    return
+  }
+  
+  console.log('应用文本水印 - 位置:', position, '自定义位置:', customPosition)
   
   // 保存当前上下文
   ctx.save()
@@ -267,10 +273,13 @@ const applyTextWatermark = (ctx: CanvasRenderingContext2D) => {
   const textWidth = textMetrics.width
   const textHeight = fontSize // 近似高度
   
-  // 保存水印尺寸信息用于拖拽检测
-  dragState.watermarkWidth = textWidth
-  dragState.watermarkHeight = textHeight
+  console.log('文本尺寸 - 宽度:', textWidth, '高度:', textHeight)
   
+  // 更新水印尺寸信息
+  watermarkInfo.width = textWidth
+  watermarkInfo.height = textHeight
+  
+  let x, y
   if (repeat) {
     // 平铺水印
     const margin = 20
@@ -279,20 +288,34 @@ const applyTextWatermark = (ctx: CanvasRenderingContext2D) => {
         drawSingleWatermark(ctx, content, x, y, textWidth, textHeight, rotation)
       }
     }
+    console.log('绘制平铺水印')
   } else {
-    // 单个水印
-    const { x, y } = calculateWatermarkPosition(
-      previewCanvas.value!.width,
-      previewCanvas.value!.height,
-      textWidth,
-      textHeight,
-      position
-    )
+    // 如果是自定义位置
+    if (position === 'custom' && customPosition) {
+      x = (customPosition.x / 100) * previewCanvas.value!.width
+      y = (customPosition.y / 100) * previewCanvas.value!.height
+      console.log('使用自定义位置 - x:', x, 'y:', y)
+    } else {
+      // 使用预设位置
+      const pos = calculateWatermarkPosition(
+        previewCanvas.value!.width,
+        previewCanvas.value!.height,
+        textWidth,
+        textHeight,
+        position
+      )
+      x = pos.x
+      y = pos.y
+      console.log('使用预设位置 - x:', x, 'y:', y, '位置类型:', position)
+    }
     
-    // 保存水印位置信息用于拖拽
-    dragState.watermarkX = x
-    dragState.watermarkY = y
+    // 更新水印位置信息
+    watermarkInfo.x = x
+    watermarkInfo.y = y
     
+    console.log('保存水印位置信息 - x:', x, 'y:', y)
+    
+    // 绘制水印
     drawSingleWatermark(ctx, content, x, y, textWidth, textHeight, rotation)
   }
   
@@ -359,7 +382,8 @@ const calculateWatermarkPosition = (
     case 'bottom-right':
       return { x: canvasWidth - textWidth - margin, y: canvasHeight - textHeight - margin }
     default:
-      return { x: margin, y: canvasHeight - textHeight - margin }
+      // 默认位置为右下角
+      return { x: canvasWidth - textWidth - margin, y: canvasHeight - textHeight - margin }
   }
 }
 </script>
@@ -394,9 +418,7 @@ const calculateWatermarkPosition = (
 .preview-canvas {
   max-width: 100%;
   max-height: 100%;
-  object-fit: contain;
   display: block;
-  cursor: default;
 }
 
 .no-preview {
@@ -406,5 +428,15 @@ const calculateWatermarkPosition = (
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+}
+
+.drag-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: move;
+  z-index: 10;
 }
 </style>
